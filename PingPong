@@ -1,4 +1,4 @@
-   org 0200h
+    org 0200h
     ldx #6d
 ; Storing 1 into 0975h do decrement
 ; as a reset flag
