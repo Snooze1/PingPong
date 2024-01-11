@@ -1,0 +1,290 @@
+   org 0200h
+    ldx #6d
+; Storing 1 into 0975h do decrement
+; as a reset flag
+    lda #01d
+    sta 0975h
+; Loading 3 into 0950h for right player
+; and into 0951h for left player to
+; attempt to decrement it for score
+    lda #03d
+    sta 0950h
+    lda #03d
+    sta 0951h
+; Loading 0ff into 0900h in an attempt to decrement it
+; during the delay to speed it up
+    lda #0ffh
+    sta 0900h
+; Loading the initial value into the LEDs
+    lda #10000000b
+    sta 0a200h
+    jsr Delay
+    
+Right:
+    lsr 0a200h
+    jsr Delay
+    dex
+    bne Right
+    
+    jsr CheckRightMiss
+    lda 0975h
+    beq FlagSwap
+    
+    lsr 0a200h
+    jsr Delay
+    
+    jsr CheckRightHit
+    lda 0975h
+    beq FlagSwap
+    ldx #6d
+    
+Left:
+    asl 0a200h
+    jsr Delay
+    dex
+    bne Left
+    
+    jsr CheckLeftMiss
+    lda 0975h
+    beq FlagSwap
+    
+    asl 0a200h
+    jsr Delay
+    
+    jsr CheckLeftHit
+    lda 0975h
+    beq FlagSwap
+    ldx #6d
+    jmp Right
+    
+FlagSwap:
+    lda #01d
+    sta 0975h
+    ldx #6d
+    lda #0ffh
+    sta 0900h
+    lda #10000000b
+    sta 0a200h
+    jsr Delay
+    jmp Right
+    
+;SUBROUTINES
+CheckRightMiss:
+    lda 0ac00h
+    cmp #01h
+    beq ScoreLeft
+    bne CheckRightMiss2
+    rts
+    
+CheckRightMiss2:
+    lda 0ac00h
+    cmp #81h
+    beq ScoreLeft
+    rts
+
+CheckRightHit:
+    lda 0ac00h
+    cmp #01h
+    bne CheckRightHit2
+    rts
+    
+CheckRightHit2:
+    lda 0ac00h
+    cmp #81h
+    bne ScoreLeft
+    rts
+
+CheckLeftMiss:
+    lda 0ac00h
+    cmp #80h
+    beq ScoreRight
+    bne CheckLeftMiss2
+    rts
+    
+CheckLeftMiss2:
+    lda 0ac00h
+    cmp #81h
+    beq ScoreRight
+    rts
+
+CheckLeftHit:
+    lda 0ac00h
+    cmp #80h
+    bne CheckLeftHit2
+    rts
+    
+CheckLeftHit2:
+    lda 0ac00h
+    cmp #81h
+    bne ScoreRight
+    rts
+    
+ScoreRight:
+    lda #0d
+    sta 0975h
+    ldx 0950h
+    dex
+    stx 0950h
+    beq RightWin
+    bne VisualLoop
+    rts
+    
+ScoreLeft:
+    lda #0d
+    sta 0975h
+    ldx 0951h
+    dex
+    stx 0951h
+    beq LeftWin
+    bne VisualLoop
+    rts
+    
+VisualLoop:
+    lda #11111111b
+    sta 0a200h
+    jsr ScoreDelay
+    lda #00000000b
+    sta 0a200h
+    jsr ScoreDelay
+    lda #11111111b
+    sta 0a200h
+    jsr ScoreDelay
+    lda #00000000b
+    sta 0a200h
+    jsr ScoreDelay
+    rts
+    
+RightWin:
+    ldy #05h
+RightWinSub:
+    lda #00001111b
+    sta 0a200h
+    jsr ScoreDelay
+    lda #00000000b
+    sta 0a200h
+    jsr ScoreDelay
+    dey
+    bne RightWinSub
+    jsr Done
+
+LeftWin:
+    ldy #05h
+LeftWinSub:
+    lda #11110000b
+    sta 0a200h
+    jsr ScoreDelay
+    lda #00000000b
+    sta 0a200h
+    jsr ScoreDelay
+    dey
+    bne LeftWinSub
+    jsr Done
+    
+ScoreDelay:
+;Save registers on the stack.
+	pha
+	txa
+	pha
+	tya
+	pha
+	
+;Change the number that is being loaded into the
+; 'A' register in order to change the delay time.
+	lda #01h
+	
+
+ScoreDelayOutLoop:
+	ldx 0450h
+ScoreDelayInLoop1:
+	ldy #01fh
+	
+ScoreDelayInLoop2:
+	dey
+	bne ScoreDelayInLoop2
+	
+	dex
+	bne ScoreDelayInLoop1
+	
+	sec
+	sbc #1d
+	bne ScoreDelayOutLoop
+	
+;Restore registers from the stack.
+    lda 0900h
+    sbc #01h
+    clc
+    beq ScoreDelayRestack
+    sta 0900h
+
+ScoreDelayRestack:
+	pla
+	tay
+	pla
+	tax
+	pla
+
+	rts
+
+	end
+    
+ 
+;**************************************
+;Delay subroutine.
+;
+;The purpose of this subroutine is to generate
+; a delay so that the rate of the blinking
+; can be controlled.
+;
+;Change the number that is being loaded into
+; the 'A' register to change the delay time.
+;**************************************
+Delay:
+;Save registers on the stack.
+	pha
+	txa
+	pha
+	tya
+	pha
+	
+;Change the number that is being loaded into the
+; 'A' register in order to change the delay time.
+	lda #01h
+	
+
+OutLoop:
+	ldx 0900h
+InLoop1:
+	ldy #02fh
+	
+InLoop2:
+	dey
+	bne InLoop2
+	
+	dex
+	bne InLoop1
+	
+	sec
+	sbc #1d
+	bne OutLoop
+	
+;Restore registers from the stack.
+    lda 0900h
+    sbc #01h
+    clc
+    beq Restack
+    sta 0900h
+
+Restack:
+	pla
+	tay
+	pla
+	tax
+	pla
+	
+
+	rts
+
+	end
+
+Done:
+    brk
